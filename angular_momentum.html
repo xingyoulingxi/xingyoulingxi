@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<title>质点与定轴转动刚体碰撞 · 角动量守恒演示实验</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; font-family: "Segoe UI", "Microsoft YaHei", sans-serif; background: #ffffff; color: #1e293b; }
+  #app { display: flex; width: 100%; height: 100%; }
+  #scene { flex: 1; position: relative; }
+  #canvas { display: block; width: 100%; height: 100%; }
+
+  #viewPanel {
+    position: absolute; top: 14px; left: 14px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 10px 12px;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.1);
+    z-index: 10;
+  }
+  #viewPanel h3 { font-size: 13px; margin-bottom: 8px; color: #0369a1; letter-spacing: 1px; }
+  #viewPanel .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .vbtn {
+    background: #f1f5f9; color: #1e293b; border: 1px solid #cbd5e1;
+    padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    transition: all .15s;
+  }
+  .vbtn:hover { background: #e2e8f0; }
+  .vbtn.active { background: #0ea5e9; border-color: #0ea5e9; color: #fff; }
+  .mem-save {
+    margin-top: 10px; width: 100%;
+    background: #0f766e; color: #fff; border: 1px solid #0f766e;
+    padding: 7px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+    transition: all .15s;
+  }
+  .mem-save:hover { background: #115e59; }
+  .mem-slots { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .mem-slot {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: #fef3c7; color: #78350f; border: 1px solid #f59e0b;
+    padding: 4px 6px 4px 10px; border-radius: 999px; cursor: pointer; font-size: 12px;
+    transition: all .15s; user-select: none;
+  }
+  .mem-slot:hover { background: #fde68a; }
+  .mem-slot .del {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border-radius: 50%; border: none;
+    background: #f59e0b; color: #fff; font-size: 11px; line-height: 1; cursor: pointer;
+  }
+  .mem-slot .del:hover { background: #d97706; }
+  .mem-empty { font-size: 11px; color: #94a3b8; margin-top: 6px; }
+
+  #pauseBadge {
+    position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+    background: rgba(234, 88, 12, 0.92); color: #fff;
+    border-radius: 8px; padding: 6px 14px; font-size: 12px; letter-spacing: 1px;
+    z-index: 10; display: none; box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+    white-space: nowrap;
+  }
+  .pbtn.warn { background: #f97316; }
+  .pbtn.warn:hover { background: #ea580c; }
+  .pbtn:disabled { opacity: 0.45; cursor: default; }
+
+  #frameGuide {
+    position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+    z-index: 6; pointer-events: none;
+  }
+
+  #ctrl {
+    width: 340px;
+    background: #f8fafc;
+    border-left: 1px solid #e2e8f0;
+    padding: 16px;
+    overflow-y: auto;
+  }
+  #ctrl h2 { font-size: 15px; color: #0369a1; margin-bottom: 4px; letter-spacing: 1px; }
+  #ctrl .sub { font-size: 11px; color: #64748b; margin-bottom: 14px; }
+  .group { margin-bottom: 14px; }
+  .group-title { font-size: 12px; color: #64748b; margin-bottom: 8px; border-left: 3px solid #0ea5e9; padding-left: 6px; }
+  .row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; font-size: 12px; }
+  .row label { color: #475569; }
+  .row .val { color: #d97706; font-variant-numeric: tabular-nums; min-width: 55px; text-align: right; }
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 4px; background: #e2e8f0; border-radius: 3px; outline: none;
+    margin: 4px 0 10px 0;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+    background: #0ea5e9; cursor: pointer; border: 2px solid #e0f2fe;
+  }
+  .play-btns { display: flex; gap: 8px; margin-top: 6px; }
+  .pbtn {
+    flex: 1; background: #0ea5e9; color: #fff; border: none;
+    padding: 8px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    transition: background .15s;
+  }
+  .pbtn:hover { background: #0284c7; }
+  .pbtn.sec { background: #f1f5f9; border: 1px solid #cbd5e1; color: #1e293b; }
+  .pbtn.sec:hover { background: #e2e8f0; }
+
+  #data {
+    position: absolute; bottom: 14px; left: 14px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 12px;
+    min-width: 290px;
+    z-index: 10;
+  }
+  #data h3 { color: #0369a1; font-size: 12px; margin-bottom: 6px; letter-spacing: 1px; }
+  #data .line { display: flex; justify-content: space-between; margin: 2px 0; }
+  #data .k { color: #64748b; }
+  #data .v { color: #059669; font-variant-numeric: tabular-nums; }
+
+  #axisLabel {
+    position: absolute; top: 14px; right: 14px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 11px;
+    color: #64748b;
+    z-index: 10;
+  }
+  #axisLabel .x { color: #ef4444; }
+  #axisLabel .y { color: #22c55e; }
+  #axisLabel .z { color: #3b82f6; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="scene">
+    <canvas id="canvas"></canvas>
+    <canvas id="frameGuide"></canvas>
+    <div id="pauseBadge">⏸ 已暂停 · 可拖动视角逐处观察 / 按 → 逐帧 / 空格继续</div>
+
+    <div id="viewPanel">
+      <h3>视角切换（三维度观察）</h3>
+      <div class="btns">
+        <button class="vbtn active" data-view="iso">自由(等轴)</button>
+        <button class="vbtn" data-view="front">正视 (X-Y 平面)</button>
+        <button class="vbtn" data-view="side">侧视 (Y-Z 平面)</button>
+        <button class="vbtn" data-view="top">俯视 (X-Z 平面)</button>
+      </div>
+      <button class="mem-save" id="memSave">📷 记忆当前镜头</button>
+      <div class="mem-slots" id="memSlots"></div>
+      <div class="mem-empty" id="memEmpty">拖动鼠标调好视角后点击上方按钮保存，之后点击记忆点可随时回到该镜头。</div>
+    </div>
+
+    <div id="axisLabel">
+      坐标轴: <span class="x">●X(红)</span> <span class="y">●Y(绿)</span> <span class="z">●Z(蓝)</span>
+    </div>
+
+    <div id="data">
+      <h3>实时物理量</h3>
+      <div class="line"><span class="k">小球速度 v</span><span class="v" id="d_v">0.00 m/s</span></div>
+      <div class="line"><span class="k">摆角 θ</span><span class="v" id="d_theta">0.0°</span></div>
+      <div class="line"><span class="k">圆盘角速度 ω</span><span class="v" id="d_omega">0.00 rad/s</span></div>
+      <div class="line"><span class="k">小球动能</span><span class="v" id="d_ek">0.00 J</span></div>
+      <div class="line"><span class="k">系统角动量 L</span><span class="v" id="d_L">0.000 kg·m²/s</span></div>
+      <div class="line"><span class="k">恢复系数 e</span><span class="v" id="d_e">0.50</span></div>
+      <div class="line"><span class="k">状态</span><span class="v" id="d_state">待释放</span></div>
+      <h3 style="margin-top:8px; border-top:1px dashed #94a3b8; padding-top:6px;">碰撞瞬时数据（冲量法求解）</h3>
+      <div class="line"><span class="k">碰前 小球切向 v₁</span><span class="v" id="d_v1b">—</span></div>
+      <div class="line"><span class="k">碰前 小球径向 v₁ᵣ</span><span class="v" id="d_v1br">—</span></div>
+      <div class="line"><span class="k">碰前 圆盘线速 ω₀R</span><span class="v" id="d_v0d">—</span></div>
+      <div class="line"><span class="k">碰撞冲量 J（切向）</span><span class="v" id="d_J">—</span></div>
+      <div class="line"><span class="k">碰后 小球切向 v₁′</span><span class="v" id="d_v1a">—</span></div>
+      <div class="line"><span class="k">碰后 小球径向 v₁ᵣ′</span><span class="v" id="d_v1ar">—</span></div>
+      <div class="line"><span class="k">碰后 圆盘线速 ω′R</span><span class="v" id="d_v1d">—</span></div>
+      <h3 style="margin-top:8px; border-top:1px dashed #94a3b8; padding-top:6px;">角动量守恒验证</h3>
+      <div class="line"><span class="k">碰前 L = mv₁R+Iω₀</span><span class="v" id="d_Lb">—</span></div>
+      <div class="line"><span class="k">碰后 L′ = mv₁′R+Iω′</span><span class="v" id="d_La">—</span></div>
+      <div class="line"><span class="k">偏差 ΔL = L′−L</span><span class="v" id="d_dL">—</span></div>
+    </div>
+  </div>
+
+  <div id="ctrl">
+    <h2>质点与定轴转动刚体碰撞</h2>
+    <div class="sub">冲量法碰撞仿真 · 角动量守恒验证实验 · Three.js 三维仿真</div>
+
+    <div class="group">
+      <div class="group-title">钢小球（质点）</div>
+      <div class="row"><label>质量 m</label><span class="val" id="lbl_m">0.10 kg</span></div>
+      <input type="range" id="m" min="0.02" max="0.5" step="0.01" value="0.10">
+      <div class="row"><label>半径 r</label><span class="val" id="lbl_r">0.015 m</span></div>
+      <input type="range" id="r" min="0.005" max="0.04" step="0.005" value="0.015">
+      <div class="row"><label>摆长 L</label><span class="val" id="lbl_L">0.55 m</span></div>
+      <input type="range" id="L" min="0.2" max="1.2" step="0.05" value="0.55">
+      <div class="row"><label>起始角度 θ₀</label><span class="val" id="lbl_theta0">30°</span></div>
+      <input type="range" id="theta0" min="5" max="70" step="1" value="30">
+      <div class="row"><label>撞击方向角 φ <span style="color:#94a3b8">(0°切向/90°径向)</span></label><span class="val" id="lbl_hitAngle">0°（切向）</span></div>
+      <input type="range" id="hitAngle" min="0" max="90" step="5" value="0">
+    </div>
+
+    <div class="group">
+      <div class="group-title">金属圆盘（定轴刚体）</div>
+      <div class="row"><label>圆盘质量 M</label><span class="val" id="lbl_M">0.50 kg</span></div>
+      <input type="range" id="M" min="0.1" max="3" step="0.05" value="0.50">
+      <div class="row"><label>圆盘半径 R</label><span class="val" id="lbl_R">0.12 m</span></div>
+      <input type="range" id="R" min="0.05" max="0.25" step="0.01" value="0.12">
+      <div class="row"><label>恢复系数 e</label><span class="val" id="lbl_e">0.50</span></div>
+      <input type="range" id="e" min="0" max="1" step="0.05" value="0.50">
+      <div class="row"><label>圆盘初始转速 ω₀ <span style="color:#94a3b8">(±顺/逆时针)</span></label><span class="val" id="lbl_omega0">0.0 rad/s</span></div>
+      <input type="range" id="omega0" min="-50" max="50" step="0.5" value="0">
+    </div>
+
+    <div class="group">
+      <div class="group-title">仿真控制</div>
+      <div class="play-btns">
+        <button class="pbtn" id="release">释放小球</button>
+        <button class="pbtn sec" id="reset">复位</button>
+      </div>
+      <div class="play-btns" style="margin-top:8px;">
+        <button class="pbtn sec" id="pauseBtn">⏸ 暂停</button>
+        <button class="pbtn sec" id="stepBtn" disabled>⏭ 单帧 (+1/60s)</button>
+      </div>
+      <div class="play-btns" style="margin-top:8px;">
+        <button class="pbtn sec" id="recordBtn">开始录制</button>
+      </div>
+      <div class="row" style="margin-top:10px;"><label>显示坐标轴</label><input type="checkbox" id="showAxis" checked></div>
+      <div class="row"><label>显示轨迹</label><input type="checkbox" id="showTrail" checked></div>
+      <div class="row"><label>显示录制取景框 (16:9)</label><input type="checkbox" id="showGuide" checked></div>
+      <div class="row"><label>慢动作 (0.3×)</label><input type="checkbox" id="slowmo"></div>
+    </div>
+
+    <div class="group">
+      <div class="group-title">实验原理</div>
+      <div style="font-size:11px; color:#64748b; line-height:1.7;">
+        <b>装置</b>：铁架台 + 悬挂钢球 + 下方金属圆盘。<br>
+        <b>过程</b>：把小球拉开 θ₀ 释放 → 下摆 → 水平撞击圆盘边缘。<br>
+        <b>撞击方向角 φ</b>：0° 小球沿圆盘切向擦击（角动量传递最大）；90° 沿半径正撞盘缘（对转轴无力矩，圆盘不加速，小球按恢复系数原路反弹）；中间角度为两种运动的叠加。<br>
+        <b>碰撞瞬间</b>（冲量法求解）：<br>
+        &nbsp;&nbsp;· 接触点产生切向冲量 J，由恢复系数 e 确定<br>
+        &nbsp;&nbsp;· J = -(1+e)·(v₁-ω₀R) / (1/m + R²/I)<br>
+        &nbsp;&nbsp;· 小球：v₁′ = v₁ + J/m（冲量-动量定理）<br>
+        &nbsp;&nbsp;· 圆盘：ω′ = ω₀ - JR/I（反作用冲量）<br>
+        &nbsp;&nbsp;· 其中 I = ½·M·R² 为圆盘转动惯量<br>
+        <b>角动量守恒验证</b>：<br>
+        &nbsp;&nbsp;· 碰前 L = m·v₁·R + I·ω₀<br>
+        &nbsp;&nbsp;· 碰后 L′ = m·v₁′·R + I·ω′<br>
+        &nbsp;&nbsp;· 面板显示 ΔL = L′−L ≈ 0（验证守恒）<br>
+        <b>碰撞后</b>：圆盘绕竖直轴自由转动，小球反弹或嵌入。<br>
+        <b>切换左上角按钮</b>可从不同方位三维观察。
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+// ---------- 场景 ----------
+const canvas = document.getElementById('canvas');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf5f7fa);
+scene.fog = new THREE.Fog(0xf5f7fa, 28, 55);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+
+// 环境反射贴图（让镀铬/黄铜金属呈现真实质感，避免发黑）
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 200);
+camera.position.set(1.9, -0.35, 2.7);
+camera.lookAt(0, -0.82, 0);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, -0.82, 0);
+
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- 灯光 ----------
+scene.add(new THREE.AmbientLight(0xffffff, 1.2));
+const dir = new THREE.DirectionalLight(0xffffff, 1.5);
+dir.position.set(4, 9, 6);
+dir.castShadow = true;
+dir.shadow.mapSize.set(1024, 1024);
+dir.shadow.camera.left = -5; dir.shadow.camera.right = 5;
+dir.shadow.camera.top = 5; dir.shadow.camera.bottom = -5;
+scene.add(dir);
+const fillLight = new THREE.DirectionalLight(0xdcecf7, 0.55);
+fillLight.position.set(-5, 3, -4);
+scene.add(fillLight);
+
+// ---------- 地面/桌面 ----------
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(8, 64),
+  new THREE.MeshStandardMaterial({ color: 0xeef1f5, metalness: 0.05, roughness: 0.9 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -1.2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const grid = new THREE.GridHelper(16, 16, 0x9ca3af, 0xc2c9d4);
+grid.position.y = -1.19;
+grid.material.opacity = 0.5;
+grid.material.transparent = true;
+scene.add(grid);
+
+// 坐标轴
+const axisGroup = new THREE.Group();
+function makeAxis(dir, color) {
+  const len = 1.0;
+  const mat = new THREE.LineBasicMaterial({ color });
+  const geo = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0,0,0), dir.clone().multiplyScalar(len)
+  ]);
+  axisGroup.add(new THREE.Line(geo, mat));
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 10), new THREE.MeshBasicMaterial({ color }));
+  tip.position.copy(dir.clone().multiplyScalar(len));
+  axisGroup.add(tip);
+}
+makeAxis(new THREE.Vector3(1,0,0), 0xef4444);
+makeAxis(new THREE.Vector3(0,1,0), 0x22c55e);
+makeAxis(new THREE.Vector3(0,0,1), 0x3b82f6);
+scene.add(axisGroup);
+
+// ---------- 物理参数 ----------
+const g = 9.8;
+const P = {
+  m: 0.10, r: 0.015, L: 0.55,
+  theta0Deg: 30, theta0: 30 * Math.PI / 180,
+  M: 0.50, R: 0.12, e: 0.50,
+  hitAngle: 0,
+  diskOmega0: 0,
+  theta: 0, omega: 0,
+  diskOmega: 0,
+  ballPos: new THREE.Vector3(),
+  ballVel: new THREE.Vector3(),
+  released: false,
+  collided: false,
+  hitPending: false,
+  collisionData: null,
+  trail: [],
+  diskY: -1.03
+};
+
+const PIVOT = new THREE.Vector3();
+
+// ---------- 3D 模型 ----------
+
+// 底座（深黑稳重，配镀铬包边）
+const baseMat = new THREE.MeshStandardMaterial({ color: 0x2b2f3a, metalness: 0.75, roughness: 0.3, envMapIntensity: 1.2 });
+const baseMesh = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.04, 0.40), baseMat);
+baseMesh.position.set(0, -1.18, 0);
+baseMesh.castShadow = true; baseMesh.receiveShadow = true;
+scene.add(baseMesh);
+
+// 底座镀铬上盖板
+const baseTrim = new THREE.Mesh(
+  new THREE.BoxGeometry(0.56, 0.012, 0.41),
+  new THREE.MeshStandardMaterial({ color: 0xeaf0f7, metalness: 1.0, roughness: 0.1, envMapIntensity: 1.6 })
+);
+baseTrim.position.set(0, -1.154, 0);
+baseTrim.castShadow = true; baseTrim.receiveShadow = true;
+scene.add(baseTrim);
+
+// 立柱（抛光镀铬，动态高度，顶部与横杆齐平，位于左侧）
+const chromeMat = new THREE.MeshStandardMaterial({ color: 0xf0f4fa, metalness: 1.0, roughness: 0.08, envMapIntensity: 1.6 });
+const brassMat = new THREE.MeshStandardMaterial({ color: 0xf2b53c, metalness: 1.0, roughness: 0.16, envMapIntensity: 1.5 });
+const pillarMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 1.5, 24), chromeMat);
+pillarMesh.position.set(-0.35, -0.39, 0);
+pillarMesh.castShadow = true;
+scene.add(pillarMesh);
+
+// 立柱底部法兰座
+const flange = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.042, 0.025, 24), brassMat);
+flange.position.set(-0.35, -1.136, 0);
+flange.castShadow = true;
+scene.add(flange);
+
+// 立柱夹具（黄铜十字夹，装饰+固定横杆）
+const clampBlock = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), brassMat);
+clampBlock.position.set(-0.35, 0, 0);
+clampBlock.castShadow = true;
+scene.add(clampBlock);
+
+// 水平横杆（抛光镀铬，从立柱顶部延伸到右侧）
+const armMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.85, 24), chromeMat);
+armMesh.rotation.z = Math.PI / 2;
+armMesh.position.set(0.05, 0, 0);
+armMesh.castShadow = true;
+scene.add(armMesh);
+
+// 横杆末端黄铜端头
+const armEnd = new THREE.Mesh(new THREE.SphereGeometry(0.013, 16, 16), brassMat);
+armEnd.position.set(0.475, 0, 0);
+scene.add(armEnd);
+
+// Z方向连接支架（镀铬细杆）：从横杆中心到悬挂点（物理 pivot 位置）
+const bracketMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.135, 12), chromeMat);
+bracketMesh.rotation.x = Math.PI / 2;
+scene.add(bracketMesh);
+
+// 悬挂点小标记（红色夹头，显示绳索连接点）
+const anchorMesh = new THREE.Mesh(
+  new THREE.ConeGeometry(0.01, 0.022, 16),
+  new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.6, roughness: 0.3 })
+);
+anchorMesh.rotation.x = Math.PI;
+scene.add(anchorMesh);
+
+// 圆盘支撑座（车削造型：底法兰 → 束腰镀铬立柱 → 黄铜腰环 → 顶法兰铜圈，连接圆盘与底座）
+const PEDESTAL_BOTTOM = -1.148;
+const pedestalHeight = P.diskY - 0.0075 - PEDESTAL_BOTTOM;
+const ph = pedestalHeight;
+const pedProfile = [
+  [0.052, 0.000], [0.052, 0.010], [0.044, 0.016], [0.027, 0.024],  // 底法兰 + 收腰过渡
+  [0.022, 0.036], [0.022, ph - 0.040],                             // 束腰立柱
+  [0.026, ph - 0.028], [0.036, ph - 0.014], [0.038, ph - 0.006],   // 展开的顶肩
+  [0.032, ph - 0.001], [0.018, ph - 0.001]                         // 顶部平台（铜圈盖住中心）
+].map(p => new THREE.Vector2(p[0], p[1]));
+const pedestal = new THREE.Mesh(new THREE.LatheGeometry(pedProfile, 48), chromeMat);
+pedestal.position.set(0, PEDESTAL_BOTTOM, 0);
+pedestal.castShadow = true; pedestal.receiveShadow = true;
+scene.add(pedestal);
+
+// 立柱中段黄铜腰环（装饰）
+const waistRing = new THREE.Mesh(new THREE.TorusGeometry(0.0255, 0.0035, 12, 48), brassMat);
+waistRing.rotation.x = Math.PI / 2;
+waistRing.position.set(0, PEDESTAL_BOTTOM + ph * 0.52, 0);
+waistRing.castShadow = true;
+scene.add(waistRing);
+
+// 顶部黄铜铜圈（轴座，衔接立柱与圆盘底面）
+const pedestalTop = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.042, 0.046, 0.016, 32),
+  brassMat
+);
+pedestalTop.position.set(0, P.diskY - 0.0075, 0);
+pedestalTop.castShadow = true;
+scene.add(pedestalTop);
+
+// 铜圈上的微型螺栓头装饰（4颗，随视图可见金属细节）
+for (let i = 0; i < 4; i++) {
+  const a = i * Math.PI / 2 + Math.PI / 4;
+  const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.004, 12), chromeMat);
+  bolt.position.set(Math.cos(a) * 0.033, P.diskY - 0.0075 - 0.008, Math.sin(a) * 0.033);
+  scene.add(bolt);
+}
+// 金属圆盘（白色质感）
+const diskMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.45, roughness: 0.25, envMapIntensity: 1.3 });
+const diskMesh = new THREE.Mesh(new THREE.CylinderGeometry(P.R, P.R, 0.015, 64), diskMat);
+diskMesh.position.set(0, P.diskY, 0);
+diskMesh.castShadow = true;
+scene.add(diskMesh);
+
+// 圆盘边缘镀铬环
+const diskRim = new THREE.Mesh(
+  new THREE.TorusGeometry(P.R, 0.005, 10, 64),
+  chromeMat
+);
+diskRim.rotation.x = Math.PI / 2;
+diskMesh.add(diskRim);
+
+// 圆盘表面同心圆刻线（金属车削纹理，素雅；局部基准半径 0.12，随盘缩放）
+const grooveMat = new THREE.MeshBasicMaterial({ color: 0xb8c0cc, transparent: true, opacity: 0.5 });
+for (let i = 1; i <= 3; i++) {
+  const groove = new THREE.Mesh(new THREE.TorusGeometry(0.12 * i / 4, 0.0012, 6, 64), grooveMat);
+  groove.rotation.x = Math.PI / 2;
+  groove.position.y = 0.009;
+  diskMesh.add(groove);
+}
+
+// 旋转指示（细微不对称标记，随盘转动即可判断旋转状态）：
+// 一根浅灰径向发丝线（r≈0.03→0.095）+ 盘缘同角度的小刻度点
+const spinMarkMat = new THREE.MeshBasicMaterial({ color: 0x8b95a5, transparent: true, opacity: 0.75 });
+const spinHairline = new THREE.Mesh(new THREE.PlaneGeometry(0.0018, 0.065), spinMarkMat);
+spinHairline.rotation.x = -Math.PI / 2;            // 平铺到盘面（高度方向 → 局部 +Z）
+spinHairline.position.set(0, 0.0095, 0.0625);      // 径向中点
+diskMesh.add(spinHairline);
+const spinTick = new THREE.Mesh(new THREE.CircleGeometry(0.0045, 16), spinMarkMat);
+spinTick.rotation.x = -Math.PI / 2;
+spinTick.position.set(0, 0.0095, 0.104);           // 盘缘刻度点
+diskMesh.add(spinTick);
+
+// 撞击点标记（仅在碰撞瞬间出现：贴在圆盘被小球触碰到的位置，随圆盘转动的灰点）
+const hitDot = new THREE.Mesh(
+  new THREE.CircleGeometry(0.014, 28),
+  new THREE.MeshBasicMaterial({ color: 0x64748b, side: THREE.DoubleSide, depthTest: false })
+);
+hitDot.rotation.x = -Math.PI / 2;
+hitDot.position.y = 0.012;
+hitDot.visible = false;
+hitDot.renderOrder = 9;
+diskMesh.add(hitDot);
+
+// 悬挂绳（细绳）
+const stringMat = new THREE.LineBasicMaterial({ color: 0x334155 });
+const stringGeo = new THREE.BufferGeometry();
+const stringLine = new THREE.Line(stringGeo, stringMat);
+scene.add(stringLine);
+
+// 钢小球（高抛光镀铬）
+const ballMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 1.0, roughness: 0.05, envMapIntensity: 1.6 });
+const ballMesh = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), ballMat);
+ballMesh.castShadow = true;
+scene.add(ballMesh);
+
+// 轨迹线
+const trailGeo = new THREE.BufferGeometry();
+const trailMat = new THREE.LineBasicMaterial({ color: 0xf97316, transparent: true, opacity: 0.9, linewidth: 2 });
+const trailLine = new THREE.Line(trailGeo, trailMat);
+scene.add(trailLine);
+
+// ---------- 几何更新 ----------
+// 小球位置：摆平面绕过悬挂点的竖直线旋转 φ（撞击方向角）
+// φ=0：摆动沿 X（碰时速度沿切向）；φ=90°：释放点外偏（z 更大），碰时速度沿 -Z（径向指向盘心）
+function hitPhiRad() { return P.hitAngle * Math.PI / 180; }
+
+function rebuild() {
+  ballMesh.scale.setScalar(P.r);
+  diskMesh.scale.set(P.R / 0.12, 1, P.R / 0.12);
+  hitDot.visible = P.collided;
+  const phi = hitPhiRad();
+  const s = P.L * Math.sin(P.theta);
+  const bx = PIVOT.x + s * Math.cos(phi);
+  const by = PIVOT.y - P.L * Math.cos(P.theta);
+  const bz = PIVOT.z + s * Math.sin(phi);
+  P.ballPos.set(bx, by, bz);
+  ballMesh.position.copy(P.ballPos);
+  stringGeo.setAttribute('position', new THREE.Float32BufferAttribute([
+    PIVOT.x, PIVOT.y, PIVOT.z, bx, by, bz
+  ], 3));
+  stringGeo.computeBoundingSphere();
+}
+
+// ---------- 初始/重置 ----------
+// 器材几何布局（支点、横杆、立柱高度，随摆长/盘半径变化）
+function layoutRig() {
+  const contactY = P.diskY;
+  const offsetZ = P.R + P.r;
+  const pivotY = contactY + P.L;
+  PIVOT.set(0, pivotY, offsetZ);
+  // 横杆与夹具位置
+  armMesh.position.y = pivotY;
+  armEnd.position.y = pivotY;
+  clampBlock.position.y = pivotY;
+  // Z方向支架：从横杆中心(0, pivotY, 0) 到悬挂点(0, pivotY, offsetZ)
+  bracketMesh.scale.set(1, offsetZ / 0.135, 1);
+  bracketMesh.position.set(0, pivotY, offsetZ / 2);
+  anchorMesh.position.set(0, pivotY - 0.011, offsetZ);
+  // 立柱动态高度：从底座盖板到横杆
+  const pillarBottom = -1.15;
+  const pillarTop = pivotY;
+  const newPillarH = pillarTop - pillarBottom;
+  pillarMesh.scale.y = newPillarH / 1.5;
+  pillarMesh.position.set(-0.35, pillarBottom + newPillarH / 2, 0);
+  P.theta0 = P.theta0Deg * Math.PI / 180;
+}
+
+// 复位；full=true 时连圆盘一起复位（角度归零、转速恢复设定值）；
+// full=false 时只把小球重新装回释放位置，圆盘保持当前转动状态
+function resetBall(full = true) {
+  layoutRig();
+  P.theta = P.theta0;
+  P.omega = 0;
+  P.released = false;
+  P.collided = false;
+  P.hitPending = false;
+  P.collisionData = null;
+  P.trail.length = 0;
+  P.ballVel.set(0, 0, 0);
+  trailGeo.setAttribute('position', new THREE.Float32BufferAttribute([], 3));
+  hitDot.visible = false;
+  rebuild();
+  // 重置碰撞数据显示
+  document.getElementById('d_v1b').textContent = '—';
+  document.getElementById('d_v1br').textContent = '—';
+  document.getElementById('d_v0d').textContent = '—';
+  document.getElementById('d_J').textContent = '—';
+  document.getElementById('d_v1a').textContent = '—';
+  document.getElementById('d_v1ar').textContent = '—';
+  document.getElementById('d_v1d').textContent = '—';
+  document.getElementById('d_Lb').textContent = '—';
+  document.getElementById('d_La').textContent = '—';
+  document.getElementById('d_dL').textContent = '—';
+  document.getElementById('d_state').textContent = '待释放';
+  if (full) {
+    P.diskOmega = P.diskOmega0;
+    diskMesh.rotation.y = 0;
+  }
+}
+
+// ---------- 物理模拟 ----------
+function step(dt) {
+  // 0) 碰后防穿透：碰后小球若继续向前（φ>0 时 θ<0 会使球心进入盘缘以内），钳制在表面接触点
+  if (P.collided && P.hitAngle > 0 && P.theta < 0) {
+    P.theta = 0;
+    P.omega = 0;
+  }
+
+  // 1) 小球单摆运动（RK4）
+  if (P.released) {
+    const substeps = 4;
+    const subdt = dt / substeps;
+    for (let si = 0; si < substeps; si++) {
+      const prevTheta = P.theta;
+      pendulumRK4(subdt);
+      // 摆角穿过最低点 = 小球外表面恰好与圆盘边缘相切的瞬间（θ=0 是唯一接触位置），
+      // 精确停在接触点再触发碰撞（最大校正 ≤ 一个子步长 ≈ 数毫米，肉眼不可见）
+      if (!P.collided && !P.hitPending && prevTheta > 0 && P.theta <= 0 && P.omega < 0) {
+        P.theta = 0;
+        P.hitPending = true;
+        break;
+      }
+    }
+  }
+
+  // 2) 由摆角更新小球位置与线速度（摆平面绕竖直方向旋转 φ：撞击方向角）
+  const phi = hitPhiRad();
+  const s = P.L * Math.sin(P.theta);
+  const bx = PIVOT.x + s * Math.cos(phi);
+  const by = PIVOT.y - P.L * Math.cos(P.theta);
+  const bz = PIVOT.z + s * Math.sin(phi);
+  P.ballPos.set(bx, by, bz);
+  ballMesh.position.copy(P.ballPos);
+  const vHoriz = P.L * P.omega * Math.cos(P.theta);
+  const vx = vHoriz * Math.cos(phi);
+  const vy = P.L * P.omega * Math.sin(P.theta);
+  const vz = vHoriz * Math.sin(phi);
+  P.ballVel.set(vx, vy, vz);
+
+  // 3) 绳
+  stringGeo.setAttribute('position', new THREE.Float32BufferAttribute([
+    PIVOT.x, PIVOT.y, PIVOT.z, bx, by, bz
+  ], 3));
+  stringGeo.computeBoundingSphere();
+
+  // 4) 轨迹
+  if (P.released) {
+    P.trail.push(P.ballPos.clone());
+    if (P.trail.length > 400) P.trail.shift();
+    const arr = new Float32Array(P.trail.length * 3);
+    P.trail.forEach((p, i) => { arr[i*3] = p.x; arr[i*3+1] = p.y; arr[i*3+2] = p.z; });
+    trailGeo.setAttribute('position', new THREE.Float32BufferAttribute(arr, 3));
+    trailGeo.computeBoundingSphere();
+  }
+
+  // 5) 碰撞触发：小球外表面与圆盘边缘表面相切的瞬间（已在子步中精确停到接触点）
+  //    接触面位置由 PIVOT 决定：contactZ = P.R + P.r，随圆盘半径 R / 小球半径 r 实时变化
+  if (P.hitPending) {
+    P.hitPending = false;
+    doCollision();
+  }
+
+  // 6) 圆盘旋转（始终有摩擦衰减）
+  diskMesh.rotateY(P.diskOmega * dt);
+  P.diskOmega *= Math.pow(0.998, dt);
+}
+
+function pendulumRK4(dt) {
+  const f = (theta, omega) => -(g / P.L) * Math.sin(theta);
+  const t0 = P.theta, w0 = P.omega;
+  const k1v = f(t0, w0);
+  const k1x = w0;
+  const k2v = f(t0 + 0.5*dt*k1x, w0 + 0.5*dt*k1v);
+  const k2x = w0 + 0.5*dt*k1v;
+  const k3v = f(t0 + 0.5*dt*k2x, w0 + 0.5*dt*k2v);
+  const k3x = w0 + 0.5*dt*k2v;
+  const k4v = f(t0 + dt*k3x, w0 + dt*k3v);
+  const k4x = w0 + dt*k3v;
+  P.theta += (dt / 6) * (k1x + 2*k2x + 2*k3x + k4x);
+  P.omega += (dt / 6) * (k1v + 2*k2v + 2*k3v + k4v);
+  P.omega *= Math.pow(0.997, dt);
+}
+
+function doCollision() {
+  const m = P.m, R = P.R, I = 0.5 * P.M * R * R;
+  const phi = hitPhiRad();
+  const vHoriz = P.L * P.omega;            // 碰前小球水平速率
+  const v1 = vHoriz * Math.cos(phi);       // 碰前切向分量（产生角动量）
+  const vRad = vHoriz * Math.sin(phi);     // 碰前径向分量（撞盘缘，对转轴无力矩）
+  const e = P.e;
+  const w0 = P.diskOmega;                  // 碰前圆盘角速度
+
+  // —— 冲量法求解碰撞（不使用角动量守恒方程）——
+  // 接触点切向相对速度 v_rel = v1 - w0·R
+  // 恢复系数定义：e = -(碰后相对速度) / (碰前相对速度)
+  // 由此唯一确定碰撞冲量 J（作用在小球上的 +X 方向）：
+  //   J = -(1+e)·(v1 - w0·R) / (1/m + R²/I)
+  // 再由冲量-动量定理（牛顿第二定律积分形式）直接算出碰后速度：
+  //   小球：v1' = v1 + J/m
+  //   圆盘：ω' = w0 - J·R/I（反作用冲量产生角动量增量）
+  const vRel = v1 - w0 * R;
+  const J = -(1 + e) * vRel / (1/m + R*R/I);
+  const v1Prime = v1 + J / m;
+  const omegaPrime = w0 - J * R / I;
+  // 径向：沿半径方向撞击盘缘，对转轴无力矩，小球按恢复系数反弹
+  const vRadPrime = -e * vRad;
+
+  // 角动量验证（由碰前/碰后速度独立计算，不参与求解过程）
+  const L_before = m * v1 * R + I * w0;
+  const L_after  = m * v1Prime * R + I * omegaPrime;
+
+  // 记录碰撞前后瞬时速度 + 冲量 + 角动量验证数据
+  P.collisionData = {
+    ballVBefore: v1,              // 碰前小球切向速度
+    ballRBefore: vRad,            // 碰前小球径向分量
+    diskVBefore: w0 * R,          // 碰前圆盘接触点线速度
+    ballVAfter: v1Prime,          // 碰后小球切向速度
+    ballRAfter: vRadPrime,        // 碰后小球径向分量
+    diskVAfter: omegaPrime * R,   // 碰后圆盘接触点线速度
+    diskOmegaBefore: w0,
+    diskOmegaAfter: omegaPrime,
+    impulse: J,                   // 碰撞冲量（切向）
+    L_before: L_before,           // 碰前系统角动量
+    L_after: L_after              // 碰后系统角动量
+  };
+
+  P.diskOmega = omegaPrime;
+  // 碰后小球速度（世界系）= 切向 v1Prime + 径向反弹 vRadPrime
+  P.omega = (v1Prime * Math.cos(phi) + vRadPrime * Math.sin(phi)) / P.L;
+  P.collided = true;
+
+  // 撞击点标记：精确取"小球刚触碰圆盘"的那一点。
+  // 世界坐标接触点：圆盘 +Z 边缘，球心 (0, diskY, R+r)，盘面接触点为 (0, 盘面, R)。
+  // 用 worldToLocal 反算圆盘局部坐标（自动扣除当前盘转角与缩放），
+  // 这样红点永远落在小球碰到的那个材料点上，之后随盘一起转动。
+  diskMesh.updateWorldMatrix(true, false);
+  const contactWorld = new THREE.Vector3(P.ballPos.x, P.diskY + 0.008, P.R);
+  const local = diskMesh.worldToLocal(contactWorld);
+  local.y = 0.012; // 贴在盘面上方
+  const rr = Math.hypot(local.x, local.z);
+  if (rr > 0.108) { local.x *= 0.108 / rr; local.z *= 0.108 / rr; } // 贴近盘缘（球的接触点）
+  hitDot.position.copy(local);
+  hitDot.visible = true;
+
+  updateCollisionDisplay();
+  document.getElementById('d_state').textContent = '碰撞完成';
+}
+
+function updateCollisionDisplay() {
+  const d = P.collisionData;
+  if (!d) return;
+  const fmt = v => (v >= 0 ? '+' : '') + v.toFixed(3) + ' m/s';
+  const fmtL = v => (v >= 0 ? '+' : '') + v.toFixed(5) + ' kg·m²/s';
+  document.getElementById('d_v1b').textContent = fmt(d.ballVBefore);
+  document.getElementById('d_v1br').textContent = fmt(d.ballRBefore);
+  document.getElementById('d_v0d').textContent = fmt(d.diskVBefore);
+  document.getElementById('d_J').textContent = (d.impulse >= 0 ? '+' : '') + d.impulse.toFixed(4) + ' N·s';
+  document.getElementById('d_v1a').textContent = fmt(d.ballVAfter);
+  document.getElementById('d_v1ar').textContent = fmt(d.ballRAfter);
+  document.getElementById('d_v1d').textContent = fmt(d.diskVAfter);
+  document.getElementById('d_Lb').textContent = fmtL(d.L_before);
+  document.getElementById('d_La').textContent = fmtL(d.L_after);
+  const dL = d.L_after - d.L_before;
+  document.getElementById('d_dL').textContent = (Math.abs(dL) < 1e-12 ? '0' : (dL >= 0 ? '+' : '') + dL.toExponential(2)) + ' kg·m²/s';
+}
+
+// ---------- UI 绑定 ----------
+function bind(id, key, fmt, after) {
+  const el = document.getElementById(id);
+  const lbl = document.getElementById('lbl_' + id);
+  el.addEventListener('input', () => {
+    P[key] = parseFloat(el.value);
+    if (lbl) lbl.textContent = fmt(P[key]);
+    if (after) after();
+  });
+}
+bind('m','m', v=>v.toFixed(2)+' kg', ()=>{ if(!P.released) resetBall(); });
+bind('r','r', v=>v.toFixed(3)+' m', ()=>{ ballMesh.scale.setScalar(P.r); if(!P.released) resetBall(); else { layoutRig(); rebuild(); } });
+bind('L','L', v=>v.toFixed(2)+' m', ()=>{ if(!P.released) resetBall(); });
+bind('theta0','theta0Deg', v=>v.toFixed(0)+'°', ()=>{ P.theta0 = P.theta0Deg*Math.PI/180; if(!P.released) resetBall(); });
+bind('hitAngle','hitAngle', v=> v===0 ? '0°（切向）' : v===90 ? '90°（径向）' : v.toFixed(0)+'°', ()=>{ if(!P.released) rebuild(); });
+bind('M','M', v=>v.toFixed(2)+' kg', ()=>{ if(!P.released) resetBall(); });
+bind('R','R', v=>v.toFixed(2)+' m', ()=>{ diskMesh.scale.set(P.R/0.12,1,P.R/0.12); if(!P.released) resetBall(); else { layoutRig(); rebuild(); } });
+bind('e','e', v=>v.toFixed(2));
+bind('omega0','diskOmega0', v=>(v>=0?'+':'')+v.toFixed(1)+' rad/s', ()=>{ if(!P.released) { P.diskOmega = P.diskOmega0; diskMesh.rotation.y = 0; } });
+
+// ---------- 视频录制（输出 16:9） ----------
+// 离屏合成画布固定 1920×1080，每帧将 WebGL 画面以"cover"方式居中铺满，
+// 保证导出视频严格 16:9 且无黑边（超出部分自动裁掉）。
+const REC_W = 1920, REC_H = 1080;
+const recCanvas = document.createElement('canvas');
+recCanvas.width = REC_W; recCanvas.height = REC_H;
+const recCtx = recCanvas.getContext('2d');
+
+let mediaRecorder = null;
+let recordedChunks = [];
+let recording = false;
+
+function drawRecFrame() {
+  // 与场景背景同色的底，避免裁切区域露黑
+  recCtx.fillStyle = '#f5f7fa';
+  recCtx.fillRect(0, 0, REC_W, REC_H);
+  const sw = canvas.width, sh = canvas.height;
+  if (sw === 0 || sh === 0) return; // 视口尚未布局完成时跳过，避免 drawImage 报错
+  const scale = Math.max(REC_W / sw, REC_H / sh); // cover 铺满
+  const dw = sw * scale, dh = sh * scale;
+  recCtx.drawImage(canvas, (REC_W - dw) / 2, (REC_H - dh) / 2, dw, dh);
+}
+
+document.getElementById('recordBtn').addEventListener('click', () => {
+  const btn = document.getElementById('recordBtn');
+  if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+    recordedChunks = [];
+    drawRecFrame(); // 先合成一帧，确保流中有画面
+    const stream = recCanvas.captureStream(60);
+    const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
+      ? 'video/webm;codecs=vp9' : 'video/webm';
+    mediaRecorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 12000000 });
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'angular_momentum_16x9.webm'; a.click();
+      URL.revokeObjectURL(url);
+      btn.textContent = '开始录制';
+    };
+    mediaRecorder.start();
+    recording = true;
+    btn.textContent = '停止录制';
+  } else {
+    recording = false;
+    mediaRecorder.stop();
+  }
+});
+
+// ---------- 录制取景框（16:9 实时预览） ----------
+// 录制时 WebGL 画面以 cover 方式铺满 1920×1080，超出 16:9 的部分会被裁掉。
+// 此覆盖层在屏幕上实时标出"最终会进入视频"的区域：框内保持原样，框外压暗提示。
+// 注意：该层只用于屏幕提示，drawRecFrame() 仅合成 WebGL canvas，不会录进视频。
+const guideCanvas = document.getElementById('frameGuide');
+const guideCtx = guideCanvas.getContext('2d');
+const showGuideEl = document.getElementById('showGuide');
+
+function drawFrameGuide() {
+  const cw = guideCanvas.clientWidth, ch = guideCanvas.clientHeight;
+  if (cw === 0 || ch === 0) return; // 视口尚未布局完成
+  const dpr = window.devicePixelRatio || 1;
+  const pw = Math.round(cw * dpr), ph = Math.round(ch * dpr);
+  if (guideCanvas.width !== pw || guideCanvas.height !== ph) {
+    guideCanvas.width = pw; guideCanvas.height = ph;
+  }
+  guideCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  guideCtx.clearRect(0, 0, cw, ch);
+  if (!showGuideEl.checked) return;
+
+  // 源画面宽高比（CSS 像素与物理像素同比），目标为录制输出 16:9
+  const TARGET = REC_W / REC_H;
+  const sa = cw / ch;
+  let gw, gh;
+  if (sa > TARGET) { gh = ch; gw = ch * TARGET; }  // 源更宽：录制时裁左右
+  else { gw = cw; gh = cw / TARGET; }             // 源更高：录制时裁上下
+  const gx = (cw - gw) / 2, gy = (ch - gh) / 2;
+
+  // 框外压暗遮罩（even-odd 挖空框内）
+  guideCtx.beginPath();
+  guideCtx.rect(0, 0, cw, ch);
+  guideCtx.rect(gx, gy, gw, gh);
+  guideCtx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+  guideCtx.fill('evenodd');
+
+  // 红色取景边框
+  guideCtx.strokeStyle = 'rgba(239, 68, 68, 0.9)';
+  guideCtx.lineWidth = 2;
+  guideCtx.strokeRect(gx, gy, gw, gh);
+
+  // 四角加粗刻度（摄像机取景框样式）
+  const tick = Math.min(30, gw * 0.06);
+  guideCtx.strokeStyle = '#ef4444';
+  guideCtx.lineWidth = 4;
+  guideCtx.lineCap = 'round';
+  guideCtx.beginPath();
+  const corners = [[gx, gy, 1, 1], [gx + gw, gy, -1, 1], [gx, gy + gh, 1, -1], [gx + gw, gy + gh, -1, -1]];
+  for (const [cx, cy, sx, sy] of corners) {
+    guideCtx.moveTo(cx + sx * tick, cy);
+    guideCtx.lineTo(cx, cy);
+    guideCtx.lineTo(cx, cy + sy * tick);
+  }
+  guideCtx.stroke();
+
+  // 左上角标签
+  const label = '16:9 录制范围';
+  guideCtx.font = '12px "Segoe UI", "Microsoft YaHei", sans-serif';
+  const tw = guideCtx.measureText(label).width;
+  const lx = gx + 12, ly = gy + 12;
+  guideCtx.fillStyle = 'rgba(220, 38, 38, 0.92)';
+  guideCtx.fillRect(lx - 7, ly - 5, tw + 14, 23);
+  guideCtx.fillStyle = '#ffffff';
+  guideCtx.textBaseline = 'middle';
+  guideCtx.fillText(label, lx, ly + 6.5);
+}
+showGuideEl.addEventListener('change', drawFrameGuide);
+
+document.getElementById('release').addEventListener('click', () => {
+  resetBall(false); // 只把小球装回释放位置，圆盘保持当前转动状态
+  P.released = true;
+  document.getElementById('d_state').textContent = '下摆中';
+});
+document.getElementById('reset').addEventListener('click', () => resetBall(true));
+
+document.getElementById('showAxis').addEventListener('change', e=>axisGroup.visible = e.target.checked);
+document.getElementById('showTrail').addEventListener('change', e=>trailLine.visible = e.target.checked);
+let slowmo = false;
+document.getElementById('slowmo').addEventListener('change', e=>slowmo = e.target.checked);
+
+// ---------- 暂停 / 逐帧观察 ----------
+let paused = false;
+const pauseBtn = document.getElementById('pauseBtn');
+const stepBtn = document.getElementById('stepBtn');
+const pauseBadge = document.getElementById('pauseBadge');
+function setPaused(p) {
+  paused = p;
+  pauseBtn.textContent = p ? '▶ 继续' : '⏸ 暂停';
+  pauseBtn.classList.toggle('warn', p);
+  stepBtn.disabled = !p;
+  pauseBadge.style.display = p ? 'block' : 'none';
+}
+function stepOnce() {
+  if (!paused) return;
+  step(1/60); // 固定推进一帧（1/60 s），画面其余部分保持冻结
+  updateData();
+}
+pauseBtn.addEventListener('click', () => setPaused(!paused));
+stepBtn.addEventListener('click', stepOnce);
+// 快捷键：空格 = 暂停/继续，→ = 单帧步进（输入框聚焦时无效）
+window.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.code === 'Space') { e.preventDefault(); setPaused(!paused); }
+  else if (e.code === 'ArrowRight') stepOnce();
+});
+
+// 视角
+const views = {
+  iso:   { pos: [1.9, -0.35, 2.7], tgt: [0, -0.82, 0] },
+  front: { pos: [0, -0.55, 2.6],   tgt: [0, -0.82, 0] },
+  side:  { pos: [2.6, -0.55, 0],   tgt: [0, -0.82, 0] },
+  top:   { pos: [0, 1.6, 0.001],   tgt: [0, -0.82, 0] }
+};
+document.querySelectorAll('.vbtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.vbtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const v = views[btn.dataset.view];
+    animateCamera(v.pos, v.tgt);
+  });
+});
+function animateCamera(posArr, tgtArr) {
+  const sp = camera.position.clone();
+  const st = controls.target.clone();
+  const ep = new THREE.Vector3(...posArr);
+  const et = new THREE.Vector3(...tgtArr);
+  const t0 = performance.now(); const dur = 600;
+  function tick() {
+    const t = Math.min(1, (performance.now() - t0) / dur);
+    const e = t<0.5 ? 2*t*t : 1 - Math.pow(-2*t+2,2)/2;
+    camera.position.lerpVectors(sp, ep, e);
+    controls.target.lerpVectors(st, et, e);
+    controls.update();
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+// ---------- 镜头记忆 ----------
+const MEM_KEY = 'angularMomentum_camSlots';
+let camSlots = [];
+try { camSlots = JSON.parse(localStorage.getItem(MEM_KEY)) || []; } catch(e) { camSlots = []; }
+
+const memSlotsEl = document.getElementById('memSlots');
+const memEmptyEl = document.getElementById('memEmpty');
+
+function persistSlots() {
+  try { localStorage.setItem(MEM_KEY, JSON.stringify(camSlots)); } catch(e) {}
+}
+function renderMemSlots() {
+  memSlotsEl.innerHTML = '';
+  memEmptyEl.style.display = camSlots.length ? 'none' : 'block';
+  camSlots.forEach((s, i) => {
+    const pill = document.createElement('div');
+    pill.className = 'mem-slot';
+    pill.title = '点击回到该镜头位置';
+    const label = document.createElement('span');
+    label.textContent = '📌 镜头 ' + (i + 1);
+    pill.appendChild(label);
+    pill.addEventListener('click', () => animateCamera(s.pos, s.tgt));
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = '×';
+    del.title = '删除该记忆点';
+    del.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      camSlots.splice(i, 1);
+      persistSlots();
+      renderMemSlots();
+    });
+    pill.appendChild(del);
+    memSlotsEl.appendChild(pill);
+  });
+}
+document.getElementById('memSave').addEventListener('click', () => {
+  controls.update();
+  camSlots.push({ pos: camera.position.toArray(), tgt: controls.target.toArray() });
+  persistSlots();
+  renderMemSlots();
+});
+renderMemSlots();
+
+// ---------- 数据显示 ----------
+function updateData() {
+  const v = P.ballVel.length();
+  const thetaDeg = P.theta * 180 / Math.PI;
+  const ek = 0.5 * P.m * v * v;
+  const R = P.R, I = 0.5 * P.M * R * R;
+  // 系统角动量中小球部分取切向分量（径向分量过转轴，不产生角动量）
+  const phi = hitPhiRad();
+  const vt = Math.abs(P.L * P.omega * Math.cos(P.theta) * Math.cos(phi));
+  const L_ball = P.released ? P.m * vt * R : 0;
+  const L_disk = I * P.diskOmega;
+  const L_total = L_ball + L_disk;
+
+  document.getElementById('d_v').textContent = v.toFixed(2) + ' m/s';
+  document.getElementById('d_theta').textContent = thetaDeg.toFixed(1) + '°';
+  document.getElementById('d_omega').textContent = P.diskOmega.toFixed(2) + ' rad/s';
+  document.getElementById('d_ek').textContent = ek.toFixed(3) + ' J';
+  document.getElementById('d_L').textContent = L_total.toFixed(4) + ' kg·m²/s';
+  document.getElementById('d_e').textContent = P.e.toFixed(2);
+}
+
+// ---------- 启动 ----------
+resetBall();
+let last = performance.now();
+function loop(now) {
+  let dt = (now - last) / 1000;
+  last = now;
+  if (dt > 0.05) dt = 0.05;
+  if (slowmo) dt *= 0.3;
+  if (!paused) step(dt); // 暂停时冻结物理推进，但保持渲染与视角控制（可绕着定格画面任意观察）
+  updateData();
+  controls.update();
+  renderer.render(scene, camera);
+  drawFrameGuide(); // 每帧刷新取景框（随窗口尺寸/勾选状态实时更新，不进入录制画面）
+  if (recording) {
+    drawRecFrame(); // 渲染后立即合成（同一帧内绘制缓冲有效），输出到 16:9 录制流
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
